@@ -4,13 +4,18 @@ where
     import Control.Monad
     import Control.Monad.Trans.Maybe
     import Control.Monad.Trans.Class
+    import Control.Monad.IO.Class
     import Data.Char
+
 
     type ProgramZipper = (String, String)
     type Environment = (ProgramZipper, MemoryZipper, [ProgramZipper])
 
     createEnvironment :: String -> Environment
     createEnvironment str = ((str, []), (replicate 10 0, []), [])
+
+    liftMaybe :: Monad m => Maybe t -> MaybeT m t
+    liftMaybe c = MaybeT $ return c
 
     runProgram :: Environment -> IO (Maybe Environment)
     runProgram env = do
@@ -20,52 +25,52 @@ where
             Nothing -> return res
 
     runStep :: Environment -> IO (Maybe Environment)
-    runStep (program, memory, stack) = case getInstruction program of
-        Nothing -> return Nothing
-        Just '>' -> return $ do
-            prog <- advanceProgram program
-            mem <- incrementPointer memory
-            return (prog, mem, stack)
-        Just '<' -> return $ do
-            prog <- advanceProgram program
-            mem <- decrementPointer memory
-            return (prog, mem, stack)
-        Just '+' -> return $ do
-            prog <- advanceProgram program
-            mem <- incrementData memory
-            return (prog, mem, stack)
-        Just '-' -> return $ do
-            prog <- advanceProgram program
-            mem <- decrementData memory
-            return (prog, mem, stack)
-        Just '[' -> return $ do
-            prog <- advanceProgram program
-            b <- getByte memory
-            (newprog, newstack) <- pushStack b prog stack
-            return (newprog, memory, newstack)
+    runStep (program, memory, stack) = runMaybeT $ do
+        instruction <- liftMaybe $ getInstruction program
+        prog <- liftMaybe $ advanceProgram program
+        case instruction of
+            '>' ->  do
+                mem <- liftMaybe $ incrementPointer memory
+                return (prog, mem, stack)
+            '<' -> do
+                prog <- liftMaybe $ advanceProgram program
+                mem <- liftMaybe $ decrementPointer memory
+                return (prog, mem, stack)
+            '+' -> do
+                prog <- liftMaybe $ advanceProgram program
+                mem <- liftMaybe $ incrementData memory
+                return (prog, mem, stack)
+            '-' -> do
+                prog <- liftMaybe $ advanceProgram program
+                mem <- liftMaybe $ decrementData memory
+                return (prog, mem, stack)
+            '[' -> do
+                prog <- liftMaybe $ advanceProgram program
+                b <- liftMaybe $ getByte memory
+                (newprog, newstack) <- liftMaybe $ pushStack b prog stack
+                return (newprog, memory, newstack)
 
-        Just ']' -> return $ do
-            prog <- advanceProgram program
-            b <- getByte memory
-            (nprog, nstack) <- popStack b prog stack
-            return (nprog, memory, nstack)
+            ']' -> do
+                prog <- liftMaybe $ advanceProgram program
+                b <- liftMaybe $ getByte memory
+                (nprog, nstack) <- liftMaybe $ popStack b prog stack
+                return (nprog, memory, nstack)
 
-        Just ',' -> do
-            a <- getChar
-            return $ do
-                prog <- advanceProgram program
-                mem <- setByte (ord a) memory
+            ',' -> do
+                a <- liftIO getChar
+                prog <- liftMaybe $ advanceProgram program
+                mem <- liftMaybe $ setByte (ord a) memory
                 return (prog, mem, stack)
 
-        Just '.' -> runMaybeT $ do
-            x <- MaybeT $ return $ getByte memory
-            lift $ putChar $ chr x
-            prog <- MaybeT $ return $ advanceProgram program
-            return (prog, memory, stack)
+            '.' -> do
+                x <- liftMaybe $ getByte memory
+                liftIO $ putChar $ chr x
+                prog <- liftMaybe $ advanceProgram program
+                return (prog, memory, stack)
 
-        Just _ -> return $ do
-            prog <- advanceProgram program
-            return (prog, memory, stack)
+            _ -> do
+                prog <- liftMaybe $ advanceProgram program
+                return (prog, memory, stack)
 
     getInstruction :: ProgramZipper -> Maybe Char
     getInstruction ([], _) = Nothing
