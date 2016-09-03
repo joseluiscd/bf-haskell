@@ -1,5 +1,5 @@
-module BF.Memory
-(MemoryZipper,
+module BF.Tape
+(TapeZipper,
 incrementPointer,
 decrementPointer,
 incrementData,
@@ -10,28 +10,28 @@ setByte
 where
 	import Data.Char
 
-	type MemoryZipper = ([Int],[Int])
+	type TapeZipper = ([Int],[Int])
 
-	incrementPointer :: MemoryZipper -> Maybe MemoryZipper
+	incrementPointer :: TapeZipper -> Maybe TapeZipper
 	incrementPointer ([], _) = Nothing
 	incrementPointer (p:mem, prev) = return (mem, p:prev)
 
-	decrementPointer :: MemoryZipper -> Maybe MemoryZipper
+	decrementPointer :: TapeZipper -> Maybe TapeZipper
 	decrementPointer (_, []) = Nothing
 	decrementPointer (mem, p:prev) = return (p:mem, prev)
 
-	incrementData :: MemoryZipper -> Maybe MemoryZipper
+	incrementData :: TapeZipper -> Maybe TapeZipper
 	incrementData ([], _) = Nothing
 	incrementData (p:mem, prev) = return (mod (p+1) 256:mem, prev)
 
-	decrementData :: MemoryZipper -> Maybe MemoryZipper
+	decrementData :: TapeZipper -> Maybe TapeZipper
 	decrementData ([], _) = Nothing
 	decrementData (p:mem, prev) = return (mod ((p-1)+256) 256:mem, prev)
 
-	getByte :: MemoryZipper -> Maybe Int
+	getByte :: TapeZipper -> Maybe Int
 	getByte ([], _) = Nothing
 	getByte (p:_, _) = return p
 
-	setByte :: Int -> MemoryZipper -> Maybe MemoryZipper
+	setByte :: Int -> TapeZipper -> Maybe TapeZipper
 	setByte b ([], _) = Nothing
 	setByte b (p:mem, prev) = return (b:mem, prev)

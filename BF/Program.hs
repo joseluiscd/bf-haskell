@@ -1,5 +1,7 @@
 module BF.Program
-(readProgram) where
+(Program,
+Instruction(Incr, Decr, Fw, Bw, Prnt, Rd, Loop, End, Noop),
+readProgram) where
 
     import Data.Char
     import Control.Monad.Trans.Writer
@@ -10,7 +12,6 @@ module BF.Program
     data Instruction = Incr | Decr | Fw | Bw | Prnt | Rd | Loop [Instruction] | End | Noop deriving Show
 
     type Program = [Instruction]
-    type ProgramZipper = (Program, Program)
 
     item:: MaybeT (State String) Char
     item = do
