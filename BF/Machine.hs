@@ -9,11 +9,16 @@ where
     import Control.Monad.Trans.State
     import Data.Char
 
-
     type Machine = (Program, TapeZipper)
 
     createMachine :: String -> Machine
     createMachine str = (readProgram str, (repeat 0, repeat 0))
+
+    runMachine:: Machine -> IO ()
+    runMachine m = void $ execStateT (runMaybeT runProgram') m
+
+    runProgram' :: MaybeT (StateT Machine IO) ()
+    runProgram' = forever runNextInstruction
 
     getInstruction:: MaybeT (StateT Machine IO) Instruction
     getInstruction = do
@@ -24,9 +29,11 @@ where
                 return ins
             _ -> fail ""
 
-    runInstruction:: MaybeT (StateT Machine IO) ()
-    runInstruction = do
-        a <- getInstruction
+    runNextInstruction:: MaybeT (StateT Machine IO) ()
+    runNextInstruction = getInstruction >>= runInstruction
+
+    runInstruction:: Instruction -> MaybeT (StateT Machine IO) ()
+    runInstruction a = do
         (program, tape) <- lift get
         case a of
             Fw -> modifyTape incrementPointer
@@ -37,9 +44,16 @@ where
                 ch <- liftIO getChar
                 modifyTape $ setByte $ ord ch
             Prnt -> getTape >>= (liftIO . putChar . chr)
+            Loop [] -> return ()
+            Loop x -> runLoop x
+            Noop -> return ()
 
-
-
+    runLoop:: Program -> MaybeT (StateT Machine IO) ()
+    runLoop prog = do
+        n <- getTape
+        unless (n == 0) $ do
+            mapM_ runInstruction prog
+            runLoop prog
 
     modifyTape:: (TapeZipper -> Maybe TapeZipper) -> MaybeT (StateT Machine IO) ()
     modifyTape fn = do
@@ -56,47 +70,3 @@ where
     maybeTape :: (Program, Maybe TapeZipper) -> MaybeT (StateT Machine IO) (Program, TapeZipper)
     maybeTape (_, Nothing) = MaybeT $ return Nothing
     maybeTape (p, Just t) = MaybeT $ return $ Just (p, t)
-
-
-    --
-    --
-    -- runStep :: Machine -> StateT MaybeT IO Machine
-    -- runStep (program, memory, stack) = do
-    --     instruction <- liftMaybe $ getInstruction program
-    --     liftIO $ print instruction
-    --     prog <- liftMaybe $ advanceProgram program
-    --     case instruction of
-    --         '>' ->  do
-    --             mem <- liftMaybe $ incrementPointer memory
-    --             return (prog, mem, stack)
-    --         '<' -> do
-    --             mem <- liftMaybe $ decrementPointer memory
-    --             return (prog, mem, stack)
-    --         '+' -> do
-    --             mem <- liftMaybe $ incrementData memory
-    --             return (prog, mem, stack)
-    --         '-' -> do
-    --             mem <- liftMaybe $ decrementData memory
-    --             return (prog, mem, stack)
-    --
-    --         '[' -> do
-    --             b <- liftMaybe $ getByte memory
-    --             (nprog, nstack) <- liftMaybe $ pushStack b prog stack
-    --             return (nprog, memory, nstack)
-    --
-    --         ']' -> do
-    --             b <- liftMaybe $ getByte memory
-    --             (nprog, nstack) <- liftMaybe $ popStack b prog stack
-    --             return (nprog, memory, nstack)
-    --
-    --         ',' -> do
-    --             a <- liftIO getChar
-    --             mem <- liftMaybe $ setByte (ord a) memory
-    --             return (prog, mem, stack)
-    --
-    --         '.' -> do
-    --             x <- liftMaybe $ getByte memory
-    --             liftIO $ putChar $ chr x
-    --             return (prog, memory, stack)
-    --
-    --         _ -> return (prog, memory, stack)

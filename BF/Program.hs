@@ -1,7 +1,7 @@
 module BF.Program
 (Program,
 Instruction(Incr, Decr, Fw, Bw, Prnt, Rd, Loop, End, Noop),
-readProgram) where
+readProgram, testProgram) where
 
     import Data.Char
     import Control.Monad.Trans.Writer
@@ -34,6 +34,17 @@ readProgram) where
             Just x -> do
                 tell [x]
                 readProgram'
+
+    writeProgram :: Program -> String
+    writeProgram = foldr fld "" where
+        fld Incr a = '+':a
+        fld Decr a = '-':a
+        fld Fw a = '>':a
+        fld Bw a = '<':a
+        fld Prnt a = '.':a
+        fld Rd a = ',':a
+        fld (Loop x) a = '[': writeProgram x ++ (']':a)
+        fld Noop a = '\n':a
 
     readInstr:: MaybeT (State String) Instruction
     readInstr = do

@@ -1,7 +1,9 @@
-import BF.Environment
+import BF.Machine
 import System.IO
 import System.IO.Error
 import System.Environment
+import Control.Monad
+import BF.Program
 
 main = catchIOError mainAction handler
 
@@ -12,8 +14,8 @@ mainAction = do
 realMain [] = putStrLn "Error, need file"
 realMain args = withFile (head args) ReadMode (\handle -> do
         dat <- hGetContents handle
-        let env = createEnvironment dat
-        runProgram env
+        let env = createMachine dat
+        runMachine env
         return ()
         )
 
